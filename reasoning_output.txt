@@ -1,0 +1,40 @@
+﻿{
+    "user_id":  "69b2adbb12dbd5be71d211c6",
+    "risk_summary":  "Risk Level: Moderate (2/4). Your profile indicates a balanced approach. You are comfortable with moderate risk in exchange for reasonable growth, blending equities and safer assets.",
+    "asset_allocation":  {
+                             "AAPL":  0.3793103448275862,
+                             "TLT":  0.27586206896551724,
+                             "BTC":  0.3448275862068965
+                         },
+    "expected_return_1y":  0.026804486522184798,
+    "reasoning":  [
+                      {
+                          "ticker":  "AAPL",
+                          "asset_name":  "Apple Inc.",
+                          "allocation_pct":  37.9,
+                          "expected_return":  22.97,
+                          "volatility":  4.11,
+                          "suitability_score":  0.55,
+                          "explanation":  "Apple Inc. (AAPL) is forecasted a 23.0% gain over the next year with low volatility (4.1%). The Bayesian model considers this a moderately suitable asset for your Moderate profile (suitability: 55%). This allocation reflects a balance between growth potential and risk management."
+                      },
+                      {
+                          "ticker":  "BTC",
+                          "asset_name":  "Bitcoin",
+                          "allocation_pct":  34.5,
+                          "expected_return":  -21.25,
+                          "volatility":  11.98,
+                          "suitability_score":  0.5,
+                          "explanation":  "Bitcoin (BTC) is forecasted a 21.3% loss over the next year with moderate volatility (12.0%). The Bayesian model considers this a moderately suitable asset for your Moderate profile (suitability: 50%). This allocation reflects a balance between growth potential and risk management."
+                      },
+                      {
+                          "ticker":  "TLT",
+                          "asset_name":  "iShares 20+ Year Treasury Bond ETF",
+                          "allocation_pct":  27.6,
+                          "expected_return":  4.71,
+                          "volatility":  2.02,
+                          "suitability_score":  0.4,
+                          "explanation":  "iShares 20+ Year Treasury Bond ETF (TLT) is forecasted a 4.7% gain over the next year with low volatility (2.0%). The Bayesian model considers this a moderately suitable asset for your Moderate profile (suitability: 40%). This allocation reflects a balance between growth potential and risk management."
+                      }
+                  ],
+    "created_at":  "2026-03-12T12:27:43.998394"
+}

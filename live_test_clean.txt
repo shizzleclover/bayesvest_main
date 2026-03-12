@@ -1,0 +1,134 @@
+﻿python : Importing plotly failed. 
+Interactive plots will not work.
+At line:1 char:26
++ ... s\Activate; python 
+live_integration_test.py > 
+live_test_results.txt 2 ...
++                 ~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~
+    + CategoryInfo          : NotSp 
+   ecified: (Importing plotl... wi  
+  ll not work.:String) [], Remote   
+ Exception
+    + FullyQualifiedErrorId : Nativ 
+   eCommandError
+ 
+
+[*********************100%**********
+*************]  1 of 1 completed
+
+[*********************100%**********
+*************]  1 of 1 completed
+INFO:cmdstanpy:Chain [1] start 
+processing
+INFO:cmdstanpy:Chain [1] done 
+processing
+INFO:cmdstanpy:Chain [1] start 
+processing
+INFO:cmdstanpy:Chain [1] done 
+processing
+INFO:cmdstanpy:Chain [1] start 
+processing
+INFO:cmdstanpy:Chain [1] done 
+processing
+======================================================================
+PHASE 1: LIVE DATA INGESTION
+======================================================================
+  Seeded 3 assets: ['AAPL', 'TLT', 'BTC']
+
+--- Test 1.1: Fetch AAPL from YFinance ---
+  [PASS] | Fetched 251 days of AAPL data
+         | Sample: {'date': '2026-03-11', 'close': 260.80999755859375}
+
+--- Test 1.2: Fetch TLT from YFinance ---
+  [PASS] | Fetched 251 days of TLT data
+         | Sample: {'date': '2026-03-11', 'close': 87.13999938964844}
+
+--- Test 1.3: Fetch BTC from CoinGecko ---
+  [PASS] | Fetched 365 days of BTC data
+         | Sample: {'date': '2026-03-12', 'close': 70479.12861142385}
+
+--- Test 1.4: Forward-Fill Weekends ---
+  [PASS] | Filled 114 weekend/holiday gaps (251 -> 365 days)
+
+  Saved aligned data to MarketData for all 3 assets.
+
+======================================================================
+PHASE 2: PROPHET MODEL TRAINING
+======================================================================
+
+--- Test 2: Train Prophet for AAPL ---
+  [PASS] | Expected Return: 0.2297 (23.0%)
+         | Volatility:      0.0411 (4.1%)
+         | Price Range:     [314.23, 327.42]
+
+--- Test 2: Train Prophet for TLT ---
+  [PASS] | Expected Return: 0.0471 (4.7%)
+         | Volatility:      0.0202 (2.0%)
+         | Price Range:     [90.28, 92.13]
+
+--- Test 2: Train Prophet for BTC ---
+  [PASS] | Expected Return: -0.2125 (-21.3%)
+         | Volatility:      0.1198 (12.0%)
+         | Price Range:     [52184.57, 58831.31]
+
+======================================================================
+PHASE 3: DUMMY USER PROFILES & PORTFOLIO ADVICE QUALITY
+======================================================================
+
+--- Profile: Very Conservative (Retiree) ---
+  Risk Score: 0/4 (Very Conservative)
+  Portfolio Allocation:
+    TLT  :  39.8% ###############
+    AAPL :  36.1% ##############
+    BTC  :  24.1% #########
+  Expected 1Y Return: 5.05%
+  Advice Quality: [PASS]
+
+--- Profile: Conservative (Near-Retirement) ---
+  Risk Score: 1/4 (Conservative)
+  Portfolio Allocation:
+    TLT  :  38.1% ###############
+    AAPL :  33.3% #############
+    BTC  :  28.6% ###########
+  Expected 1Y Return: 3.38%
+  Advice Quality: [PASS]
+
+--- Profile: Moderate (Mid-Career) ---
+  Risk Score: 2/4 (Moderate)
+  Portfolio Allocation:
+    AAPL :  37.9% ###############
+    BTC  :  34.5% #############
+    TLT  :  27.6% ###########
+  Expected 1Y Return: 2.68%
+  Advice Quality: [PASS]
+
+--- Profile: Aggressive (Young Professional) ---
+  Risk Score: 4/4 (Very Aggressive)
+  Portfolio Allocation:
+    BTC  :  47.6% ###################
+    AAPL :  33.3% #############
+    TLT  :  19.0% #######
+  Expected 1Y Return: -1.57%
+  Advice Quality: [PASS]
+
+--- Profile: Very Aggressive (Crypto Trader) ---
+  Risk Score: 4/4 (Very Aggressive)
+  Portfolio Allocation:
+    BTC  :  47.6% ###################
+    AAPL :  33.3% #############
+    TLT  :  19.0% #######
+  Expected 1Y Return: -1.57%
+  Advice Quality: [PASS]
+
+======================================================================
+FINAL SUMMARY
+======================================================================
+
+  Profiles tested: 5
+  Sensible advice: 5/5
+
+  [PASS] ALL PROFILES RECEIVED SENSIBLE ADVICE!
+
+  Test data cleaned up. Done!
