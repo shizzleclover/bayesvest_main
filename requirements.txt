@@ -1,0 +1,14 @@
+django>=5.0,<6.0
+djangorestframework>=3.14
+djangorestframework-simplejwt>=5.3
+drf-yasg>=1.21
+mongoengine>=0.28
+python-dotenv>=1.0
+celery>=5.3
+redis>=5.0
+gunicorn>=21.2
+yfinance>=0.2
+pycoingecko>=3.1
+pandas>=2.0
+prophet>=1.1
+pgmpy>=0.0.21
