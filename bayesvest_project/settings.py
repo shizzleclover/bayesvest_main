@@ -23,6 +23,7 @@ INSTALLED_APPS = [
     "apps.market",
     "apps.engine",
     "apps.portfolio",
+    "apps.goals",
 ]
 
 MIDDLEWARE = [

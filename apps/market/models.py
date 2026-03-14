@@ -14,3 +14,9 @@ class MarketData(Document):
     historical_prices = ListField(DictField())
     last_updated = DateTimeField(default=datetime.datetime.utcnow)
     meta = {'collection': 'market_data'}
+
+class Watchlist(Document):
+    user_id = StringField(required=True, unique=True)
+    tickers = ListField(StringField(max_length=10))
+    created_at = DateTimeField(default=datetime.datetime.utcnow)
+    meta = {'collection': 'watchlists'}

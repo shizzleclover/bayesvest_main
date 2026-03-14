@@ -1,6 +1,9 @@
 import logging
+import time
 
+import requests
 import yfinance as yf
+from django.conf import settings as django_settings
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -8,7 +11,7 @@ from rest_framework import status
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
-from .models import Asset, MarketData
+from .models import Asset, MarketData, Watchlist
 from apps.engine.models import Forecast
 
 logger = logging.getLogger(__name__)
@@ -104,3 +107,130 @@ def _crypto_stub(ticker):
         "fifty_two_week_low": min(prices[-365:]) if len(prices) > 1 else prices[-1],
         "description": f"{ticker} is a cryptocurrency. Price data sourced from CoinGecko.",
     }
+
+
+# ── News endpoint ──────────────────────────────────────────────
+
+_news_cache = {'data': [], 'ts': 0}
+_NEWS_TTL = 1800  # 30 minutes
+
+
+class MarketNewsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        now = time.time()
+        if _news_cache['data'] and now - _news_cache['ts'] < _NEWS_TTL:
+            return Response(_news_cache['data'])
+
+        articles = _fetch_news()
+        _news_cache['data'] = articles
+        _news_cache['ts'] = now
+        return Response(articles)
+
+
+def _fetch_news():
+    """Fetch financial news from Finnhub free tier (no key required for general news)."""
+    try:
+        api_key = getattr(django_settings, 'FINNHUB_API_KEY', '') or 'demo'
+        url = f"https://finnhub.io/api/v1/news?category=general&token={api_key}"
+        resp = requests.get(url, timeout=10)
+        if resp.status_code != 200:
+            logger.warning("[News] Finnhub returned %d", resp.status_code)
+            return _fallback_news()
+        items = resp.json()
+        if not isinstance(items, list):
+            return _fallback_news()
+        return [
+            {
+                "title": a.get("headline", ""),
+                "summary": a.get("summary", ""),
+                "source": a.get("source", ""),
+                "url": a.get("url", ""),
+                "published_at": a.get("datetime", 0),
+                "image_url": a.get("image", ""),
+            }
+            for a in items[:20]
+        ]
+    except Exception as e:
+        logger.warning("[News] Failed to fetch: %s", e)
+        return _fallback_news()
+
+
+def _fallback_news():
+    """Static fallback articles when the API is unavailable."""
+    return [
+        {
+            "title": "Diversification remains key in volatile markets",
+            "summary": "Financial advisors continue to recommend spreading investments across asset classes to manage risk effectively.",
+            "source": "Bayesvest Insights",
+            "url": "",
+            "published_at": int(time.time()),
+            "image_url": "",
+        },
+        {
+            "title": "Understanding compound interest and long-term growth",
+            "summary": "Starting early and investing consistently can dramatically increase your portfolio value over decades.",
+            "source": "Bayesvest Insights",
+            "url": "",
+            "published_at": int(time.time()),
+            "image_url": "",
+        },
+    ]
+
+
+# ── Watchlist endpoints ────────────────────────────────────────
+
+class WatchlistView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        wl = Watchlist.objects(user_id=str(request.user.id)).first()
+        tickers = wl.tickers if wl else []
+        items = []
+        for t in tickers:
+            asset = Asset.objects(ticker=t).first()
+            md = MarketData.objects(asset_ticker=t).first()
+            price = None
+            prev = None
+            if md and md.historical_prices:
+                prices = [p['close'] for p in md.historical_prices if 'close' in p]
+                if prices:
+                    price = prices[-1]
+                    prev = prices[-2] if len(prices) > 1 else None
+            items.append({
+                "ticker": t,
+                "name": asset.name if asset else t,
+                "asset_class": asset.asset_class if asset else "",
+                "current_price": price,
+                "previous_close": prev,
+            })
+        return Response(items)
+
+
+class WatchlistAddView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        ticker = request.data.get('ticker', '').upper()
+        if not ticker:
+            return Response({"error": "ticker required"}, status=status.HTTP_400_BAD_REQUEST)
+        wl = Watchlist.objects(user_id=str(request.user.id)).first()
+        if not wl:
+            wl = Watchlist(user_id=str(request.user.id), tickers=[])
+        if ticker not in wl.tickers:
+            wl.tickers.append(ticker)
+            wl.save()
+        return Response({"tickers": wl.tickers})
+
+
+class WatchlistRemoveView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        ticker = request.data.get('ticker', '').upper()
+        wl = Watchlist.objects(user_id=str(request.user.id)).first()
+        if wl and ticker in wl.tickers:
+            wl.tickers.remove(ticker)
+            wl.save()
+        return Response({"tickers": wl.tickers if wl else []})
