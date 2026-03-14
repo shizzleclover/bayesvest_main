@@ -23,7 +23,8 @@ class InferenceEngine:
 
         # 1. Age (Capacity) [Max 15]
         age = answers.get('age_bracket', '')
-        if age == "Under 30": total_score += 15
+        if age == "18 - 25": total_score += 15
+        elif age == "25 - 29": total_score += 12
         elif age == "30 - 45": total_score += 10
         elif age == "46 - 60": total_score += 5
 

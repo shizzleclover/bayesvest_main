@@ -71,7 +71,7 @@ def fetch_yfinance_data(ticker, years=5):
     return historical_prices
 
 
-def fetch_coingecko_data(coin_id, vs_currency='usd', days=1825, max_retries=3):
+def fetch_coingecko_data(coin_id, vs_currency='usd', days=365, max_retries=3):
     """Fetch historical daily prices from CoinGecko with retry logic."""
     for attempt in range(1, max_retries + 1):
         try:

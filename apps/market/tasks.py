@@ -78,7 +78,7 @@ def run_daily_market_ingestion():
             elif asset.asset_class == 'Crypto':
                 coin_id = COINGECKO_ID_MAP.get(asset.ticker.upper())
                 if coin_id:
-                    aligned_data = fetch_coingecko_data(coin_id, days=1825)
+                    aligned_data = fetch_coingecko_data(coin_id, days=365)
                 else:
                     logger.warning("[Bayesvest] No CoinGecko ID mapping for %s", asset.ticker)
 

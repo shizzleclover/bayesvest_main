@@ -128,7 +128,7 @@ class RiskAssessmentView(APIView):
                         'age_bracket': openapi.Schema(
                             type=openapi.TYPE_STRING, 
                             description="What is your current age bracket?",
-                            enum=["Under 30", "30 - 45", "46 - 60", "60+"]
+                            enum=["18 - 25", "25 - 29", "30 - 45", "46 - 60", "60+"]
                         ),
                         'horizon': openapi.Schema(
                             type=openapi.TYPE_STRING, 
