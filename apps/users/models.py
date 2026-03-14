@@ -39,6 +39,7 @@ class RiskAssessment(Document):
     user_id = StringField(required=True)
     answers = DictField()
     risk_score = FloatField()
+    raw_score = IntField(default=0)
     risk_level = StringField()
     created_at = DateTimeField(default=datetime.datetime.utcnow)
     meta = {'collection': 'risk_assessments'}

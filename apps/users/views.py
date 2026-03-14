@@ -106,7 +106,13 @@ class RiskAssessmentView(APIView):
     def get(self, request):
         assessment = RiskAssessment.objects(user_id=str(request.user.id)).order_by('-created_at').first()
         if not assessment: return Response({'error': 'No risk assessment found'}, status=status.HTTP_404_NOT_FOUND)
-        return Response({'answers': assessment.answers, 'risk_score': assessment.risk_score, 'created_at': assessment.created_at}, status=status.HTTP_200_OK)
+        return Response({
+            'answers': assessment.answers,
+            'risk_score': assessment.risk_score,
+            'raw_score': assessment.raw_score,
+            'risk_level': assessment.risk_level,
+            'created_at': assessment.created_at,
+        }, status=status.HTTP_200_OK)
         
     @swagger_auto_schema(
         operation_description="Submit a new Risk Assessment. The AI Inference Engine processes these answers to compute a Baseline Risk Score (0 to 4) reflecting the user's capacity and tolerance for volatility.",
@@ -180,17 +186,21 @@ class RiskAssessmentView(APIView):
         if not answers or not isinstance(answers, dict):
             return Response({'error': 'Answers dictionary is required'}, status=status.HTTP_400_BAD_REQUEST)
         
-        from apps.engine.services.inference import bayes_engine
-        risk_score = bayes_engine.calculate_risk_score(answers)
+        from apps.engine.services.inference import bayes_engine, RISK_LABELS
+        raw_score, band = bayes_engine.calculate_risk_score(answers)
+        risk_level = RISK_LABELS.get(band, f"Level {band}")
         
         assessment = RiskAssessment(
             user_id=str(request.user.id),
             answers=answers,
-            risk_score=risk_score,
-            risk_level=f"Level {risk_score}"
+            risk_score=band,
+            raw_score=raw_score,
+            risk_level=risk_level,
         )
         assessment.save()
         return Response({
             'status': 'Risk assessment processed successfully',
-            'computed_risk_score': risk_score
+            'computed_risk_score': band,
+            'raw_score': raw_score,
+            'risk_level': risk_level,
         }, status=status.HTTP_201_CREATED)

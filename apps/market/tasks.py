@@ -7,21 +7,55 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Default assets the system tracks
 DEFAULT_ASSETS = [
+    # ── Stocks ───────────────────────────────────────────────
     {"ticker": "AAPL", "name": "Apple Inc.", "asset_class": "Stock", "sector": "Technology", "risk_level": "Medium"},
+    {"ticker": "MSFT", "name": "Microsoft Corp.", "asset_class": "Stock", "sector": "Technology", "risk_level": "Medium"},
+    {"ticker": "JNJ", "name": "Johnson & Johnson", "asset_class": "Stock", "sector": "Healthcare", "risk_level": "Low"},
+    {"ticker": "JPM", "name": "JPMorgan Chase & Co.", "asset_class": "Stock", "sector": "Finance", "risk_level": "Medium"},
+    {"ticker": "PG", "name": "Procter & Gamble Co.", "asset_class": "Stock", "sector": "Consumer Staples", "risk_level": "Low"},
+    {"ticker": "XOM", "name": "ExxonMobil Corp.", "asset_class": "Stock", "sector": "Energy", "risk_level": "Medium"},
+
+    # ── Broad / Index ETFs ───────────────────────────────────
     {"ticker": "SPY", "name": "SPDR S&P 500 ETF", "asset_class": "ETF", "sector": "Index", "risk_level": "Medium"},
-    {"ticker": "TLT", "name": "iShares 20+ Year Treasury Bond ETF", "asset_class": "ETF", "sector": "Treasury", "risk_level": "Low"},
+    {"ticker": "QQQ", "name": "Invesco QQQ Trust", "asset_class": "ETF", "sector": "Technology", "risk_level": "Medium"},
+    {"ticker": "VWO", "name": "Vanguard FTSE Emerging Markets ETF", "asset_class": "ETF", "sector": "International", "risk_level": "High"},
+    {"ticker": "VEA", "name": "Vanguard FTSE Developed Markets ETF", "asset_class": "ETF", "sector": "International", "risk_level": "Medium"},
+    {"ticker": "IWM", "name": "iShares Russell 2000 ETF", "asset_class": "ETF", "sector": "Small Cap", "risk_level": "High"},
+
+    # ── Bonds / Treasuries ───────────────────────────────────
+    {"ticker": "TLT", "name": "iShares 20+ Year Treasury Bond ETF", "asset_class": "Bond", "sector": "Treasury", "risk_level": "Low"},
+    {"ticker": "AGG", "name": "iShares Core U.S. Aggregate Bond ETF", "asset_class": "Bond", "sector": "Aggregate", "risk_level": "Low"},
+    {"ticker": "TIP", "name": "iShares TIPS Bond ETF", "asset_class": "Bond", "sector": "Inflation-Protected", "risk_level": "Low"},
+
+    # ── REITs ────────────────────────────────────────────────
+    {"ticker": "VNQ", "name": "Vanguard Real Estate ETF", "asset_class": "REIT", "sector": "Real Estate", "risk_level": "Medium"},
+
+    # ── Commodities ──────────────────────────────────────────
+    {"ticker": "GLD", "name": "SPDR Gold Shares", "asset_class": "Commodity", "sector": "Precious Metals", "risk_level": "Medium"},
+
+    # ── Crypto ───────────────────────────────────────────────
     {"ticker": "BTC", "name": "Bitcoin", "asset_class": "Crypto", "sector": "Currency", "risk_level": "High"},
     {"ticker": "ETH", "name": "Ethereum", "asset_class": "Crypto", "sector": "Currency", "risk_level": "High"},
 ]
 
+COINGECKO_ID_MAP = {
+    'BTC': 'bitcoin',
+    'ETH': 'ethereum',
+    'SOL': 'solana',
+    'ADA': 'cardano',
+}
+
 def seed_default_assets():
     """Seed the database with default assets if none exist."""
-    if Asset.objects.count() == 0:
-        for asset_data in DEFAULT_ASSETS:
+    existing = {a.ticker for a in Asset.objects.only('ticker')}
+    added = 0
+    for asset_data in DEFAULT_ASSETS:
+        if asset_data['ticker'] not in existing:
             Asset(**asset_data).save()
-        logger.info(f"[Bayesvest] Seeded {len(DEFAULT_ASSETS)} default assets.")
+            added += 1
+    if added:
+        logger.info(f"[Bayesvest] Seeded {added} new assets (total: {len(DEFAULT_ASSETS)}).")
 
 @shared_task
 def run_daily_market_ingestion():
@@ -32,12 +66,11 @@ def run_daily_market_ingestion():
     for asset in assets:
         aligned_data = []
         try:
-            if asset.asset_class in ['Stock', 'ETF', 'Bond']:
+            if asset.asset_class in ['Stock', 'ETF', 'Bond', 'REIT', 'Commodity']:
                 raw_data = fetch_yfinance_data(asset.ticker, years=5)
                 aligned_data = forward_fill_weekends(raw_data)
             elif asset.asset_class == 'Crypto':
-                coingecko_id_map = {'BTC': 'bitcoin', 'ETH': 'ethereum', 'SOL': 'solana', 'ADA': 'cardano'}
-                coin_id = coingecko_id_map.get(asset.ticker.upper())
+                coin_id = COINGECKO_ID_MAP.get(asset.ticker.upper())
                 if coin_id: aligned_data = fetch_coingecko_data(coin_id, days=1825)
             if aligned_data:
                 market_data = MarketData.objects(asset_ticker=asset.ticker).first()
@@ -54,4 +87,3 @@ def run_daily_market_ingestion():
     if failed_assets: summary += f" Failed: {failed_assets}"
     logger.info(f"[Bayesvest] {summary}")
     return summary
-
