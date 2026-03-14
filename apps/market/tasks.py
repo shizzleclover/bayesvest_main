@@ -1,6 +1,10 @@
 from celery import shared_task
 from .models import Asset, MarketData
-from .services.data_ingestion import fetch_yfinance_data, fetch_coingecko_data
+from .services.data_ingestion import (
+    fetch_yfinance_data,
+    fetch_coingecko_data,
+    COINGECKO_ID_MAP,
+)
 from .services.data_alignment import forward_fill_weekends
 import datetime
 import logging
@@ -39,15 +43,9 @@ DEFAULT_ASSETS = [
     {"ticker": "ETH", "name": "Ethereum", "asset_class": "Crypto", "sector": "Currency", "risk_level": "High"},
 ]
 
-COINGECKO_ID_MAP = {
-    'BTC': 'bitcoin',
-    'ETH': 'ethereum',
-    'SOL': 'solana',
-    'ADA': 'cardano',
-}
 
 def seed_default_assets():
-    """Seed the database with default assets if none exist."""
+    """Seed the database with default assets (idempotent)."""
     existing = {a.ticker for a in Asset.objects.only('ticker')}
     added = 0
     for asset_data in DEFAULT_ASSETS:
@@ -55,35 +53,54 @@ def seed_default_assets():
             Asset(**asset_data).save()
             added += 1
     if added:
-        logger.info(f"[Bayesvest] Seeded {added} new assets (total: {len(DEFAULT_ASSETS)}).")
+        logger.info("[Bayesvest] Seeded %d new assets (total: %d).", added, len(DEFAULT_ASSETS))
+    return added
+
 
 @shared_task
 def run_daily_market_ingestion():
+    """Fetch historical prices for every Asset from yfinance / CoinGecko."""
     seed_default_assets()
     assets = Asset.objects.all()
     updated_count = 0
     failed_assets = []
+
     for asset in assets:
         aligned_data = []
         try:
-            if asset.asset_class in ['Stock', 'ETF', 'Bond', 'REIT', 'Commodity']:
+            if asset.asset_class in ('Stock', 'ETF', 'Bond', 'REIT', 'Commodity'):
                 raw_data = fetch_yfinance_data(asset.ticker, years=5)
-                aligned_data = forward_fill_weekends(raw_data)
+                if raw_data:
+                    aligned_data = forward_fill_weekends(raw_data)
+                else:
+                    logger.warning("[Bayesvest] yfinance returned no data for %s", asset.ticker)
+
             elif asset.asset_class == 'Crypto':
                 coin_id = COINGECKO_ID_MAP.get(asset.ticker.upper())
-                if coin_id: aligned_data = fetch_coingecko_data(coin_id, days=1825)
+                if coin_id:
+                    aligned_data = fetch_coingecko_data(coin_id, days=1825)
+                else:
+                    logger.warning("[Bayesvest] No CoinGecko ID mapping for %s", asset.ticker)
+
             if aligned_data:
                 market_data = MarketData.objects(asset_ticker=asset.ticker).first()
-                if not market_data: market_data = MarketData(asset_ticker=asset.ticker)
+                if not market_data:
+                    market_data = MarketData(asset_ticker=asset.ticker)
                 market_data.historical_prices = aligned_data
                 market_data.last_updated = datetime.datetime.utcnow()
                 market_data.save()
                 updated_count += 1
-                logger.info(f"[Bayesvest] Ingested {len(aligned_data)} data points for {asset.ticker}")
+                logger.info("[Bayesvest] Saved %d data points for %s", len(aligned_data), asset.ticker)
+            else:
+                logger.warning("[Bayesvest] No data to save for %s (%s)", asset.ticker, asset.asset_class)
+                failed_assets.append(asset.ticker)
+
         except Exception as e:
-            logger.error(f"[Bayesvest] Failed to ingest {asset.ticker}: {e}")
+            logger.error("[Bayesvest] Failed to ingest %s: %s", asset.ticker, e, exc_info=True)
             failed_assets.append(asset.ticker)
-    summary = f"Successfully ingested and aligned data for {updated_count} assets."
-    if failed_assets: summary += f" Failed: {failed_assets}"
-    logger.info(f"[Bayesvest] {summary}")
+
+    summary = f"Successfully ingested and aligned data for {updated_count}/{len(list(assets))} assets."
+    if failed_assets:
+        summary += f" Failed: {failed_assets}"
+    logger.info("[Bayesvest] %s", summary)
     return summary
