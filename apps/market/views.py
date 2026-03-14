@@ -130,17 +130,29 @@ class MarketNewsView(APIView):
 
 
 def _fetch_news():
-    """Fetch financial news from Finnhub free tier (no key required for general news)."""
+    """Fetch financial news, trying Finnhub first, then GNews as fallback."""
+    articles = _try_finnhub()
+    if articles:
+        return articles
+    articles = _try_gnews()
+    if articles:
+        return articles
+    return _fallback_news()
+
+
+def _try_finnhub():
     try:
-        api_key = getattr(django_settings, 'FINNHUB_API_KEY', '') or 'demo'
+        api_key = getattr(django_settings, 'FINNHUB_API_KEY', '') or ''
+        if not api_key:
+            return None
         url = f"https://finnhub.io/api/v1/news?category=general&token={api_key}"
         resp = requests.get(url, timeout=10)
         if resp.status_code != 200:
             logger.warning("[News] Finnhub returned %d", resp.status_code)
-            return _fallback_news()
+            return None
         items = resp.json()
-        if not isinstance(items, list):
-            return _fallback_news()
+        if not isinstance(items, list) or not items:
+            return None
         return [
             {
                 "title": a.get("headline", ""),
@@ -151,10 +163,50 @@ def _fetch_news():
                 "image_url": a.get("image", ""),
             }
             for a in items[:20]
+            if a.get("headline")
         ]
     except Exception as e:
-        logger.warning("[News] Failed to fetch: %s", e)
-        return _fallback_news()
+        logger.warning("[News] Finnhub failed: %s", e)
+        return None
+
+
+def _try_gnews():
+    """GNews free tier — 10 results, no key needed for top headlines."""
+    try:
+        url = "https://gnews.io/api/v4/top-headlines?category=business&lang=en&max=15&apikey=demo"
+        resp = requests.get(url, timeout=10)
+        if resp.status_code != 200:
+            logger.warning("[News] GNews returned %d", resp.status_code)
+            return None
+        data = resp.json()
+        items = data.get("articles", [])
+        if not items:
+            return None
+        return [
+            {
+                "title": a.get("title", ""),
+                "summary": a.get("description", ""),
+                "source": a.get("source", {}).get("name", ""),
+                "url": a.get("url", ""),
+                "published_at": _iso_to_ts(a.get("publishedAt", "")),
+                "image_url": a.get("image", ""),
+            }
+            for a in items
+            if a.get("title")
+        ]
+    except Exception as e:
+        logger.warning("[News] GNews failed: %s", e)
+        return None
+
+
+def _iso_to_ts(iso_str):
+    """Convert ISO 8601 datetime string to unix timestamp."""
+    try:
+        import datetime as _dt
+        dt = _dt.datetime.fromisoformat(iso_str.replace("Z", "+00:00"))
+        return int(dt.timestamp())
+    except Exception:
+        return int(time.time())
 
 
 def _fallback_news():
